@@ -6,8 +6,8 @@ from vaex.column import str_type
 def test_dtype_basics(df):
     df['new_virtual_column'] = df.x + 1
     for name in df.column_names:
-        if df.dtype(name) == str_type:
-            assert df[name].values.dtype.kind in 'OSU'
+        if df.dtype_evaluate(name) == str_type:
+            assert df[name].to_numpy().values.dtype.kind in 'OSU'
         else:
             assert df[name].values.dtype == df.dtype(df[name])
 

@@ -5,6 +5,7 @@ import vaex.server.tornado_server
 import vaex.server.dummy
 import numpy as np
 import contextlib
+import pyarrow as pa
 
 import sys
 test_port = 3911 + sys.version_info[0] * 10 + sys.version_info[1]

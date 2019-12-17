@@ -6,6 +6,7 @@ import numpy as np
 import vaex
 import vaex.encoding
 from .utils import as_flat_float, as_flat_array, _issequence, _ensure_list
+from . import array_types
 
 
 _task_part_register = {}
@@ -318,6 +319,8 @@ class TaskPartAggregations:
                     # we pass datetime as int
                     x = x.view('uint64')
             return x
+
+        blocks = [array_types.to_numpy(block) for block in blocks]
         block_map = {expr: block for expr, block in zip(self.expressions, blocks)}
         # we need to make sure we keep some objects alive, since the c++ side does not incref
         # on set_data and set_data_mask

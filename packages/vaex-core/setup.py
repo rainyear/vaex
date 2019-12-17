@@ -131,12 +131,13 @@ setup(name=name + '-core',
       install_requires=install_requires_core,
       license=license,
       package_data={'vaex': ['test/files/*.fits', 'test/files/*.vot', 'test/files/*.hdf5']},
-      packages=['vaex', 'vaex.core', 'vaex.file', 'vaex.test', 'vaex.ext', 'vaex.misc'],
+      packages=['vaex', 'vaex.arrow', 'vaex.core', 'vaex.file', 'vaex.test', 'vaex.ext', 'vaex.misc'],
       ext_modules=[extension_vaexfast] if on_rtd else [extension_vaexfast, extension_strings, extension_superutils, extension_superagg],
       zip_safe=False,
       entry_points={
           'console_scripts': ['vaex = vaex.__main__:main'],
           'gui_scripts': ['vaexgui = vaex.__main__:main'],  # sometimes in osx, you need to run with this
-          'vaex.dataframe.accessor': ['geo = vaex.geo:DataFrameAccessorGeo']
+          'vaex.dataframe.accessor': ['geo = vaex.geo:DataFrameAccessorGeo'],
+          'vaex.plugin': ['arrow = vaex.arrow.opener:register_opener'],
       }
       )

@@ -7,7 +7,7 @@ def test_dtype_basics(df):
     df['new_virtual_column'] = df.x + 1
     for name in df.column_names:
         if df.dtype_evaluate(name) == str_type:
-            assert df[name].to_numpy().values.dtype.kind in 'OSU'
+            assert df[name].to_numpy().dtype.kind in 'OSU'
         else:
             assert df[name].values.dtype == df.dtype(df[name])
 
@@ -20,9 +20,12 @@ def test_dtypes(ds_local):
 def test_dtype_str():
     df = vaex.from_arrays(x=["foo", "bars"], y=[1,2])
     assert df.dtype(df.x) == str_type
+    assert df.arrow_type(df.x) == pa.string()
     df['s'] = df.y.apply(lambda x: str(x))
     assert df.dtype(df.x) == str_type
     assert df.dtype(df.s) == str_type
+    assert df.arrow_type(df.x) == pa.string()
+    assert df.arrow_type(df.s) == pa.string()
 
     n = np.array(['aap', 'noot'])
     assert vaex.from_arrays(n=n).n.dtype == str_type

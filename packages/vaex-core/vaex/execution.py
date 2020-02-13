@@ -188,6 +188,8 @@ class Executor(object):
 
                     def process(thread_index, i1, i2):
                         if not cancelled[0]:
+                            if thread_index >= len(block_scopes):
+                                raise RuntimeError(f'thread_index={thread_index} while only expecting {len(block_scopes)}')
                             block_scope = block_scopes[thread_index]
                             block_scope.move(i1, i2)
                             if pre_filter:

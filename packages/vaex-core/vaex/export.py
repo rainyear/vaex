@@ -12,7 +12,7 @@ import vaex.utils
 import vaex.execution
 import vaex.file.colfits
 import vaex.file.other
-from vaex.column import ColumnStringArrow, str_type, _to_string_sequence
+from vaex.column import ColumnStringArrow, _to_string_sequence
 
 
 max_length = int(1e5)
@@ -63,7 +63,7 @@ def _export(dataset_input, dataset_output, random_index_column, path, column_nam
     order_array_inverse = None
 
     # for strings we also need the inverse order_array, keep track of that
-    has_strings = any([dataset_input.dtype(k) == str_type for k in column_names])
+    has_strings = any([dataset_input.is_string(k) for k in column_names])
 
     if partial_shuffle:
         # if we only export a portion, we need to create the full length random_index array, and
@@ -168,7 +168,7 @@ def _export_column(dataset_input, dataset_output, column_name, shuffle, sort, se
                 if np.ma.isMaskedArray(to_array):
                     to_array = np.empty_like(to_array_disk)
                 else:
-                    if dtype == str_type:
+                    if vaex.array_types.is_string_type(dtype):
                         # we create an empty column copy
                         to_array = to_array._zeros_like()
                     else:
@@ -176,7 +176,7 @@ def _export_column(dataset_input, dataset_output, column_name, shuffle, sort, se
             to_offset = 0  # we need this for selections
             to_offset_unselected = 0 # we need this for filtering
             count = len(dataset_input)# if not selection else dataset_input.length_unfiltered()
-            is_string = dtype == str_type
+            is_string = vaex.array_types.is_string_type(dtype)
             # TODO: if no filter, selection or mask, we can choose the quick path for str
             string_byte_offset = 0
 

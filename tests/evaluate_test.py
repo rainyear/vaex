@@ -34,18 +34,34 @@ def test_evaluate_function_filtered_df():
     assert df_filtered.y.tolist() == [25, 36, 49, 64, 81]
 
 
+
 def test_evaluate_types():
-    x = np.arange(10)
+    x = np.arange(2)
     y = pa.array(x**2)
-    df = vaex.from_arrays(x=x, y=y)
+    df = vaex.from_arrays(x=x, y=y, s=["foo", "bars"])
     assert isinstance(df.columns['x'], np.ndarray)
     assert isinstance(df.columns['y'], pa.Array)
 
-    assert df.evaluate("x", type=None) is x
-    assert isinstance(df.evaluate("x", type="numpy"), np.ndarray)
-    assert isinstance(df.evaluate("x", type="arrow"), pa.Array)
+    assert df.evaluate("x", array_type=None) is x
+    assert isinstance(df.evaluate("x", array_type="numpy"), np.ndarray)
+    assert isinstance(df.evaluate("x", array_type="arrow"), pa.Array)
 
-    assert df.evaluate("y", type=None) is y
-    assert isinstance(df.evaluate("y", type=None), pa.Array) # WIP
-    assert isinstance(df.evaluate("y", type="arrow"), pa.Array)
-    assert isinstance(df.evaluate("y", type="numpy"), np.ndarray)
+    # TODO: we want to add real string arrays only, so it should be arrow
+    assert df.evaluate("x", array_type=None) is s
+    assert isinstance(df.evaluate("s", array_type=None), np.ndarray)
+    assert isinstance(df.evaluate("s", array_type="arrow"), pa.Array)
+    assert isinstance(df.evaluate("s", array_type="numpy"), np.ndarray)
+
+    assert df.evaluate("y", array_type=None) is y
+    assert isinstance(df.evaluate("y", array_type=None), pa.Array)
+    assert isinstance(df.evaluate("y", array_type="arrow"), pa.Array)
+    assert isinstance(df.evaluate("y", array_type="numpy"), np.ndarray)
+
+
+@pytest.mark.parametrize('parallel', [True, False])
+def test_arrow_evaluate(parallel):
+    x = np.arange(2)
+    df = vaex.from_arrays(s=["foo", "bars"])
+    assert df.evaluate(df.s.as_arrow(), array_type='numpy', parallel=parallel).type == pa.string()
+    assert df.evaluate(df.s.as_arrow(), array_type='arrow', parallel=parallel).type == pa.string()
+    assert df.evaluate(df.s.as_arrow(), array_type=None, parallel=parallel).type == pa.string()

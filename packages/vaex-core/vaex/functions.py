@@ -2116,16 +2116,17 @@ def _float(x):
 @register_function(name='astype', on_expression=False)
 def _astype(x, dtype):
     if dtype == 'str':
-        mask = np.isnan(x)
-        x = x.astype(dtype).astype('O')
-        x[mask] = None
+        if isinstance(x, np.ndarray) and x.dtype.kind not in 'US':
+            mask = np.isnan(x)
+            x = x.astype(dtype).astype('O')
+            x[mask] = None
         return _to_string_column(x)
     # we rely on numpy for astype conversions (TODO: possible performance hit?)
     if isinstance(x, vaex.column.ColumnString):
         x = x.to_numpy()
     if isinstance(x, pa.Array):
         x = x.to_pandas().values
-    y = x.astype(dtype)
+    y = x.astype(dtype if dtype not in ['string', 'large_string'] else 'str')
     if vaex.column._is_stringy(y):
         y = vaex.column._to_string_column(y)
     return y
@@ -2138,6 +2139,21 @@ def _isin(x, values):
         return x.string_sequence.isin(values)
     else:
         return np.isin(x, values)
+
+
+@register_function()
+def as_arrow(x):
+    '''Lazily convert to Apache Arrow array type'''
+    from .array_types import to_arrow
+    # since we do this lazily, we can convert to native without wasting memory
+    return to_arrow(x, convert_to_native=True)
+
+
+@register_function()
+def as_numpy(x, strict=False):
+    '''Lazily convert to NumPy ndarray type'''
+    from .array_types import to_numpy
+    return to_numpy(x, strict=strict)
 
 
 def add_geo_json(ds, json_or_file, column_name, longitude_expression, latitude_expresion, label=None, persist=True, overwrite=False, inplace=False, mapping=None):

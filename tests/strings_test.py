@@ -4,6 +4,7 @@ import re
 
 import vaex
 import numpy as np
+import pyarrow as pa
 import pytest
 
 
@@ -63,7 +64,7 @@ def test_concat():
     ds2 = vaex.from_arrays(names=['hello', 'this', 'is', 'long'])
     ds = ds1.concat(ds2)
     assert len(ds) == len(ds1) + len(ds2)
-    assert ds.dtype('names') == vaex.column.str_type
+    assert ds.dtype('names') == pa.string()
     assert ds.dtype('names') != np.object
 
 
@@ -78,7 +79,7 @@ def test_string_count_stat():
     names = vaex.string_column(['hello', 'this', None, 'long'])
     x = np.arange(len(names))
     df = vaex.from_arrays(names=names, x=x)
-    assert df.count(ds.names, binby='x', limits=[0, 100], shape=1).tolist() == [3]
+    assert df.count(df.names, binby='x', limits=[0, 100], shape=1).tolist() == [3]
 
 
 @pytest.mark.skip
@@ -89,9 +90,9 @@ def test_string_dtype_with_none():
 
 def test_unicode():
     ds = vaex.from_arrays(names=['bla\u1234'])
-    assert ds.names.dtype == vaex.column.str_type
+    assert ds.names.dtype == pa.string()
     ds = vaex.from_arrays(names=['bla'])
-    assert ds.names.dtype == vaex.column.str_type
+    assert ds.names.dtype == pa.string()
 
 
 @pytest.mark.skipif(sys.version_info < (3, 3), reason="requires python3.4 or higher")
@@ -101,7 +102,7 @@ def test_concat_mixed():
     # and the other string
     ds1 = vaex.from_arrays(names=['not', 'missing'])
     ds2 = vaex.from_arrays(names=[np.nan, np.nan])
-    assert ds1.dtype(ds1.names) == str
+    assert ds1.dtype(ds1.names) == pa.string()
     assert ds2.dtype(ds2.names) == np.float64
     ds = ds1.concat(ds2)
     assert len(ds) == len(ds1) + len(ds2)
@@ -118,10 +119,10 @@ def test_strip():
 def test_unicode2(tmpdir):
     path = str(tmpdir.join('utf32.hdf5'))
     ds = vaex.from_arrays(names=["vaex", "or", "væx!"])
-    assert ds.names.dtype == vaex.column.str_type
+    assert ds.names.dtype == pa.string()
     ds.export_hdf5(path)
     ds = vaex.open(path)
-    assert ds.names.dtype == vaex.column.str_type
+    assert ds.names.dtype == pa.string()
     assert ds.names.tolist() == ["vaex", "or", "væx!"]
 
 

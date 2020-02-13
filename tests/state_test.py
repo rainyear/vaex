@@ -15,9 +15,9 @@ def test_state_get_set(ds_local):
     assert ds_copy.copy().v.values.tolist() == ds.v.values.tolist()
     assert 'v' in ds_copy.get_column_names()
 
-def test_state_variables(ds_local, tmpdir):
+def test_state_variables(df_local_non_arrow, tmpdir):
     filename = str(tmpdir.join('state.json'))
-    df = ds_local
+    df = df_local_non_arrow
     df_copy = df.copy()
     t_test = np.datetime64('2005-01-01')
     df.add_variable('dt_var', t_test)

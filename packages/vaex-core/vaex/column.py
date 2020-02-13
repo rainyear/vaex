@@ -7,6 +7,7 @@ import numpy as np
 import pyarrow as pa
 
 import vaex
+from .array_types import supported_arrow_array_types, string_types, is_string_type
 
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 if not on_rtd:
@@ -23,7 +24,8 @@ class Column(object):
         return pa.array(self, type=type)
 
 
-supported_column_types = (np.ndarray, pa.Array, pa.ChunkedArray, Column)
+supported_column_types = (np.ndarray, Column) + supported_arrow_array_types
+
 
 class ColumnVirtualRange(Column):
     def __init__(self, start, stop, step=1, dtype=None):
@@ -141,7 +143,10 @@ class ColumnIndexed(Column):
             i1, i2 = np.min(indices), np.max(indices)
             ar_unfiltered = ar_unfiltered[i1:i2+1]
             indices = indices - i1
-        ar = ar_unfiltered[indices]
+        if isinstance(ar_unfiltered, supported_arrow_array_types):
+            ar = ar_unfiltered.take(vaex.array_types.to_arrow(indices))
+        else:
+            ar = ar_unfiltered[indices]
         assert not np.ma.isMaskedArray(indices)
         if self.masked:
             mask = indices == -1
@@ -163,9 +168,9 @@ class ColumnConcatenatedLazy(Column):
                         except:
                             self.fill_value = expressions[0].values.fill_value
 
-            any_strings = any([dtype == str_type for dtype in dtypes])
+            any_strings = any([is_string_type(dtype) for dtype in dtypes])
             if any_strings:
-                self.dtype = str_type
+                self.dtype = pa.string()  # TODO: how do we know it should not be large_string?
             else:
                 # np.datetime64/timedelta64 and find_common_type don't mix very well
                 if all([dtype.type == np.datetime64 for dtype in dtypes]):
@@ -185,7 +190,8 @@ class ColumnConcatenatedLazy(Column):
                     else:
                         self.dtype = np.find_common_type(dtypes, [])
                     logger.debug("common type for %r is %r", dtypes, self.dtype)
-            self.expressions = [e if e.dtype == self.dtype else e.astype(self.dtype) for e in expressions]
+            # make sure all expression are the same type
+            self.expressions = [e if vaex.array_types.same_type(e.dtype, self.dtype) else e.astype(self.dtype) for e in expressions]
         else:
             # if dtype is given, we assume every expression/column is the same dtype
             self.dtype = dtype
@@ -250,7 +256,7 @@ class ColumnConcatenatedLazy(Column):
         stop = stop or len(self)
         assert step in [None, 1]
         dtype = self.dtype
-        if dtype == str_type:
+        if is_string_type(dtype):
             dtype = 'O'  # we store the strings in a dtype=object array
         expressions = iter(self.expressions)
         current_expression = next(expressions)
@@ -281,20 +287,18 @@ class ColumnConcatenatedLazy(Column):
                 if offset < stop:
                     current_expression = next(expressions)
             values = copy
-        if self.dtype == str_type:
+        if is_string_type(dtype):
             return _to_string_column(values)
         else:
             return values
 
-try:
-    str_type = str
-except:
-    str_type = str
 
 use_c_api = True
 
+
 class ColumnString(Column):
     pass
+
 
 class ColumnStringArray(Column):
     """Wraps a numpy array with dtype=object, containing all strings"""
@@ -406,8 +410,13 @@ class ColumnStringArrow(ColumnString):
         self.indices = indices
         self.offset = offset  # to avoid memory copies in trim
         self.bytes = bytes
-        self.dtype = str_type
         self.length = length if length is not None else len(indices) - 1
+        if indices.dtype.kind == 'i' and indices.dtype.itemsize == 8:
+            self.dtype = pa.large_string()
+        elif indices.dtype.kind == 'i' and indices.dtype.itemsize == 4:
+            self.dtype = pa.string()
+        else:
+            raise ValueError('unsupported index type' + str(indices.dtype))
         self.shape = (self.__len__(),)
         self.nbytes = self.bytes.nbytes + self.indices.nbytes
         self.null_bitmap = null_bitmap
@@ -420,18 +429,11 @@ class ColumnStringArrow(ColumnString):
 
     def __arrow_array__(self, type=None):
         indices = self.indices
-        if indices.dtype.kind == 'i' and indices.dtype.itemsize == 8:
-            if type is None:
-                type = pa.large_string()
-            else:
-                if type == pa.string():
-                    indices = indices.astype(np.int32)
-        elif indices.dtype.kind == 'i' and indices.dtype.itemsize == 4:
-            type = pa.string()
-            if type == pa.large_string():
-                indices = indices.astype(np.int64)
-        else:
-            raise ValueError('unsupported index type' + str(indices.dtype))
+        type = type or self.dtype
+        if type == pa.string() and self.dtype == pa.large_string():
+            indices = indices.astype(np.int32)  # downcast
+        elif type == pa.large_string() and self.dtype == pa.string():
+            type = pa.string()  # upcast
         # TODO: we dealloc the memory in the C++ extension, so we need to copy for now
         buffers = [None, pa.py_buffer(_asnumpy(indices).copy() - self.offset), pa.py_buffer(_asnumpy(self.bytes).view(np.uint8).copy()), ]
         if self.null_bitmap is not None:

@@ -73,7 +73,7 @@ class DataFrameRemote(DataFrame):
         return (rows,)
         # return (rows,) + sample.shape[1:]
 
-    def dtype(self, expression, internal=False):
+    def dtype(self, expression, internal=False, array_type=None):
         if str(expression) in self._dtypes:
             return self._dtypes[str(expression)]
         else:

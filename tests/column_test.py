@@ -64,3 +64,13 @@ def test_plain_strings():
     assert len(df[1:3]) == 2
     assert df[1:3].x.tolist() == x[1:3].tolist()
 
+
+def test_column_count():
+    x = np.array([1, 2, np.nan])
+    df = vaex.from_arrays(x=x)
+
+    df['new_x'] = df.x + 1
+    df['new_x'] = df['new_x'].fillna(value=0)
+
+    assert df.column_count() == 2
+    assert df.new_x.tolist() == [2, 3, 0]
